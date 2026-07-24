@@ -21,6 +21,7 @@ import {
   toScheme,
 } from "./db";
 import { LOCAL_IMAGES } from "./data/localImages";
+import { exportProjectPng } from "./export";
 import { paintById } from "./data/paints";
 import { STEP_TYPES, type PaintStepType, type Project } from "./types";
 
@@ -207,6 +208,21 @@ export default function App() {
   const matchColor = (hex: string) =>
     setMatchTarget({ hex, title: `Nearest to ${hex.toUpperCase()}` });
 
+  const exportPng = async () => {
+    if (!image || !project) return;
+    setError(null);
+    try {
+      await exportProjectPng({
+        name: project.name,
+        imageUrl: image.url,
+        pins: project.pins,
+        assignments: project.assignments,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   // --- Project management ---
   const switchProject = async (id: string) => {
     const p = await getProject(id);
@@ -298,6 +314,9 @@ export default function App() {
         <div className="actions">
           <button onClick={() => setShowShopping(true)} title="Paints this scheme needs">
             🛒 {neededPaints.length}
+          </button>
+          <button onClick={exportPng} disabled={!image} title="Download annotated plan as PNG">
+            ⬇ PNG
           </button>
           {LOCAL_IMAGES.length > 0 && (
             <select
