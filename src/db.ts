@@ -1,18 +1,12 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { Project, SchemeExport } from "./types";
 
-export interface StoredImage {
-  name: string;
-  data: ArrayBuffer;
-}
-
 export interface OwnedPaint {
   paintId: string;
 }
 
 const db = new Dexie("painting-buddy") as Dexie & {
   projects: EntityTable<Project, "id">;
-  images: EntityTable<StoredImage, "name">;
   ownedPaints: EntityTable<OwnedPaint, "paintId">;
 };
 
@@ -24,8 +18,6 @@ db.version(3).stores({
   models: "name",
   ownedPaints: "paintId",
 });
-
-// v4: image-only. Drop the 3D model table, add an images table.
 db.version(4).stores({
   projects: "id, name, updatedAt",
   models: null,
@@ -33,16 +25,14 @@ db.version(4).stores({
   ownedPaints: "paintId",
 });
 
+// v5: parts-list app. Drop the images table.
+db.version(5).stores({
+  projects: "id, name, updatedAt",
+  images: null,
+  ownedPaints: "paintId",
+});
+
 export { db };
-
-// --- Image storage ---
-export async function saveImageBlob(name: string, data: ArrayBuffer): Promise<void> {
-  await db.images.put({ name, data });
-}
-
-export async function getImageBlob(name: string): Promise<ArrayBuffer | undefined> {
-  return (await db.images.get(name))?.data;
-}
 
 // --- Paint inventory ---
 export async function listOwnedPaintIds(): Promise<string[]> {
@@ -80,7 +70,7 @@ export function createProject(name: string): Project {
   return {
     id: newId(),
     name,
-    pins: [],
+    parts: [],
     assignments: {},
     updatedAt: Date.now(),
   };
@@ -91,20 +81,32 @@ export function toScheme(project: Project): SchemeExport {
     app: "painting-buddy",
     version: 1,
     name: project.name,
-    imageName: project.imageName,
-    pins: project.pins,
+    parts: project.parts,
     assignments: project.assignments,
   };
 }
 
 export function schemeToProject(scheme: SchemeExport): Project {
+  const legacyPins = (scheme as { pins?: { id: string; label: string }[] }).pins;
   return {
     id: newId(),
     name: scheme.name || "Imported scheme",
-    imageName: scheme.imageName,
-    pins: scheme.pins ?? [],
+    parts: scheme.parts ?? legacyPins?.map((p) => ({ id: p.id, label: p.label })) ?? [],
     assignments: scheme.assignments ?? {},
     updatedAt: Date.now(),
+  };
+}
+
+/** Normalize a project loaded from storage: migrate legacy pins→parts, drop stale fields. */
+export function sanitizeProject(p: Project): Project {
+  const raw = p as Project & { pins?: { id: string; label: string }[] };
+  const parts = raw.parts ?? raw.pins?.map((pn) => ({ id: pn.id, label: pn.label })) ?? [];
+  return {
+    id: p.id,
+    name: p.name,
+    parts,
+    assignments: p.assignments ?? {},
+    updatedAt: p.updatedAt,
   };
 }
 

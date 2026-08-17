@@ -7,39 +7,43 @@ export interface Paint {
   range?: string;
 }
 
-export type PaintStepType = "Basecoat" | "Wash" | "Layer" | "Drybrush" | "Highlight";
+export type PaintStepType =
+  | "Base"
+  | "Shade"
+  | "Layer"
+  | "Highlight"
+  | "Drybrush"
+  | "Edge Highlight"
+  | "Glaze"
+  | "Wash"
+  | "Other";
 
-export const STEP_TYPES: PaintStepType[] = [
-  "Basecoat",
-  "Wash",
-  "Layer",
-  "Drybrush",
-  "Highlight",
-];
+/** The fixed, one-paint-each roles shown as slots on every pin. */
+export const SLOT_TYPES: PaintStepType[] = ["Base", "Shade", "Layer", "Highlight"];
+
+/** Optional roles addable as free-form "extra" steps. */
+export const EXTRA_TYPES: PaintStepType[] = ["Drybrush", "Edge Highlight", "Glaze", "Wash", "Other"];
 
 export interface PaintStep {
   type: PaintStepType;
   paintId: string;
+  /** True for free-form extra steps (beyond the four fixed slots). */
+  extra?: boolean;
 }
 
 /** Maps a pin id to an ordered list of paint steps. */
 export type Assignments = Record<string, PaintStep[]>;
 
-/** A labeled marker placed on a reference image; its recipe lives in Assignments[id]. */
-export interface Pin {
+/** A named part of the miniature; its recipe lives in Assignments[id]. */
+export interface Part {
   id: string;
-  /** Normalized position on the image, 0–1. */
-  x: number;
-  y: number;
   label: string;
 }
 
 export interface Project {
   id: string;
   name: string;
-  /** Filename of the loaded reference image. */
-  imageName?: string;
-  pins: Pin[];
+  parts: Part[];
   assignments: Assignments;
   updatedAt: number;
 }
@@ -49,7 +53,6 @@ export interface SchemeExport {
   app: "painting-buddy";
   version: 1;
   name: string;
-  imageName?: string;
-  pins: Pin[];
+  parts: Part[];
   assignments: Assignments;
 }
